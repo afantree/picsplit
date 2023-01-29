@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"fmt"
+	"github.com/disintegration/imaging"
 	"howett.net/plist"
 	"image"
 	"image/draw"
@@ -24,7 +25,11 @@ func main() {
 	path := os.Args[1]
 	pathStat, err := os.Stat(path)
 	if err != nil {
-		panic(err)
+		if pathStat, err = os.Stat(path + ".plist"); err != nil {
+			if pathStat, err = os.Stat(path + ".png"); err != nil {
+				panic(err)
+			}
+		}
 	}
 	if pathStat.IsDir() {
 		files, err := os.ReadDir(path)
@@ -118,22 +123,32 @@ func handlePath(path string) error {
 	}
 
 	for name, frame := range info.Frames {
-		newImg := image.NewRGBA(frame.GetSourceSize())
-		draw.Draw(newImg, frame.GetSourceRect(), bigImage, frame.Frame.Min, draw.Over)
-		newImgPath := filepath.Join(outputPath, name)
-		outFile, err1 := os.Create(newImgPath)
-		if err1 != nil {
-			fmt.Printf("create %s fail result:%s\n", newImgPath, err)
-			continue
+		// 先生成个中间的图片
+		tmpImg := image.NewNRGBA(frame.GetOriginSize())
+		draw.Draw(tmpImg, tmpImg.Bounds(), bigImage, frame.Frame.Min, draw.Over)
+		if frame.Rotated {
+			tmpImg = imaging.Rotate90(tmpImg)
 		}
-		if err = png.Encode(outFile, newImg); err != nil {
-			fmt.Printf("png encode %s fail result:%s\n", newImgPath, err)
-			continue
-		}
-		if err = outFile.Close(); err != nil {
-			fmt.Printf("close %s fail result:%s\n", newImgPath, err)
-			continue
-		}
+		// 判断下是否旋转，再贴到目标图片里面
+		newImg := image.NewNRGBA(frame.GetSourceSize())
+		draw.Draw(newImg, frame.GetTargetRect(), tmpImg, tmpImg.Bounds().Min, draw.Src)
+		saveImage(newImg, filepath.Join(outputPath, name))
 	}
 	return nil
+}
+
+func saveImage(img image.Image, path string) {
+	outFile, err := os.Create(path)
+	if err != nil {
+		fmt.Printf("create %s fail result:%s\n", path, err)
+		return
+	}
+	if err = png.Encode(outFile, img); err != nil {
+		fmt.Printf("png encode %s fail result:%s\n", path, err)
+		return
+	}
+	if err = outFile.Close(); err != nil {
+		fmt.Printf("close %s fail result:%s\n", path, err)
+		return
+	}
 }

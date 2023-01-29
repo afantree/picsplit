@@ -20,14 +20,20 @@ type PlistFrame struct {
 	SourceSize      Point     `plist:"sourceSize"`
 }
 
-func (f *PlistFrame) GetSourceRect() image.Rectangle {
+func (f *PlistFrame) GetOriginSize() image.Rectangle {
+	r := f.SourceColorRect.Rectangle
 	if f.Rotated {
-		r := f.SourceColorRect.Rectangle
-		return image.Rect(r.Min.X, r.Min.Y, r.Max.Y, r.Max.X)
+		return image.Rect(0, 0, r.Max.Y, r.Max.X)
 	} else {
-		return f.SourceColorRect.Rectangle
+		return image.Rect(0, 0, r.Max.X, r.Max.Y)
 	}
 }
+
+func (f *PlistFrame) GetTargetRect() image.Rectangle {
+	r := f.SourceColorRect.Rectangle
+	return image.Rect(r.Min.X, r.Min.Y, f.SourceSize.X, f.SourceSize.Y)
+}
+
 func (f *PlistFrame) GetSourceSize() image.Rectangle {
 	return image.Rect(0, 0, f.SourceSize.X, f.SourceSize.Y)
 }
