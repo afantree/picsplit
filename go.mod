@@ -1,4 +1,4 @@
-module picsplit
+module github.com/afantree/picsplit
 
 go 1.19
 
